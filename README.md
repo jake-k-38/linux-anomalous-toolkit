@@ -37,10 +37,10 @@ To run this project, Git clone it or extract, and allow executable permission. T
 sudo chmod 755 anomalus.sh
 ```
 ## Usage
-Simply just run the script anomalus.sh
+Simply just run the script anomalus.sh and direct output to file
 
 ```
-sudo ./anomalus.sh
+sudo ./anomalus.sh > example.txt
 ```
 
 ## Notes
