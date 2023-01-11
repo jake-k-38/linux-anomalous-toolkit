@@ -28,6 +28,9 @@ sudo grep "Failed password" /var/log/secure | awk '{print $11}' | uniq -c | sort
 Find accepted connections:
 sudo grep "Accepted password" /var/log/auth.log | uniq -c | sort -nr
 
+Display and sort number of connections per IP and port:
+netstat -ntu | awk '{ sub(/(.*):/,"",$4); sub(/:(.*)/,"",$5); print $5,$4}' | grep ^[0-9] | sort | uniq -c | sort -nr | head -30
+
 Find sudo commands last used:
 sudo grep "sudo:" /var/log/auth.log | uniq -c | sort -nr
 ```
