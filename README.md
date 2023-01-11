@@ -44,3 +44,8 @@ sudo ./anomalus.sh
 ```
 
 ## Notes
+
+https://www.activecountermeasures.com/hunting-for-persistence-in-linux-part-1-auditd-sysmon-osquery-and-webshells/
+https://www.xplg.com/linux-security-investigate-suspected-break-in/
+https://linuxsecurity.expert/tools/
+https://medium.com/@p.matkovski/detection-of-php-web-shells-with-access-log-waf-and-audit-deamon-e798d4c95ec
