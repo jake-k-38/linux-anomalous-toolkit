@@ -16,6 +16,7 @@ run <history> to see command history in user terminal (before reboot recover) hi
 run <lastcomm name>, <sa -u name> Use psacct or acct to view process activites of each user
 run aureport (tool comes with auditd)
 review the auth/ssh log and look for any accepted sessions/bruteforce
+review apache/nginx access logs - https://github.com/nanopony/apache-scalp
 install rkhunter to check for rootkits
 validate crontab for users / root account (less /etc/crontab)
 Look over any system HIDS logs
@@ -45,6 +46,12 @@ Simply just run the script anomalus.sh and direct output to file
 ```
 sudo ./anomalus.sh > example.txt
 ```
+
+## To-Do
+Add HTML / CSV output <br />
+Add more persistence checks <br />
+Add file output options inside folder <br />
+Add process analysis checks like "Process running from /tmp, /dev" or "Deleted binaries still running"
 
 ## Notes
 
