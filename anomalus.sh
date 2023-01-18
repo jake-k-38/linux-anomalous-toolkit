@@ -30,26 +30,34 @@ function box_out()
 }
 
 box_out "Started @ `date +"%m-%d-%Y %T"`"
-box_out "Anomalus Response Toolkit"
-
-#List modified ~.ssh/authorized_keys dirs for all users
 echo ""
+box_out "Anomalus Response Toolkit"
+echo ""
+
 box_out "Analyzing users authorized_keys folder..."
+echo ""
+#List modified ~.ssh/authorized_keys dirs for all users
 usersDir=$(getent passwd | grep /home | cut -d: -f6)
 for i in $usersDir
 do
    keys=$i/.ssh/authorized_keys
    if [ -d $keys ]; then
       current_status=$(mktemp /tmp/temp-status.XXXXXX)
-      find $keys -mtime -1 -type f -print > ${current_status}
-      box_out "Last 24-48 hours of activity in .ssh/authorized_keys for account: $i"
-      cat ${current_status}
-      echo ""
+      if [[ -s ${current_status} ]]; then
+         find $keys -mtime -1 -type f -print > ${current_status}
+         box_out "Last 24-48 hours of activity in .ssh/authorized_keys for account: $i"
+         cat ${current_status}
+         echo ""
+      fi
       rm -f ${current_status}
+   else
+      echo "No authorized_keys folder found for $i"
    fi
 done
 echo ""
 
+box_out "Analyzing users groups, crontab, cron commands"
+echo ""
 #List /etc/group for each user
 users=$(getent passwd | grep /home | cut -d: -f1)
 for i in $users
@@ -57,17 +65,63 @@ do
    echo "Group information for user: $i"
    printf "%s\n" `getent group | grep $i | sort`
 done
+echo ""
 
 #List crontab for each user
-users=$(getent passwd | grep /home | cut -d: -f1)
+users=$(getent passwd | cut -f1 -d:) #getent passwd | grep /home | cut -d: -f1
 for i in $users
 do
    echo "Crontab jobs for user: $i"
    crontab -u $i -l
+   echo ""
 done
 
 echo ""
+box_out "system-wide crontab"
+cat /etc/crontab
+echo ""
+
+box_out "Searching for excessive length cron commands in /var/spool/cron*"
+find /var/spool/cron* -type f -exec awk 'length($6) > 50 { print $6 }' {} \;
+echo ""
+
+box_out "Searching for cron @reboot in /etc/cron.*"
+find /etc/cron.* -type f -exec grep -H '@reboot' {} \;
+grep -H '@reboot' /etc/crontab
+echo ""
+
+#List startup services / echo out rc.local
+box_out "List out startup services, timers, rc.local, and user history"
+echo ""
+systemctl list-unit-files | grep enabled
+echo ""
+if [ -f /etc/rc.local ]; then
+   box_out "/etc/rc.local contents below:"
+   cat /etc/rc.local
+fi
+echo ""
+systemctl list-timers --all
+
+echo ""
+box_out "Bash history *Most used commands* for all users"
+echo ""
+users=$(getent passwd | cut -f1 -d: | grep -v root)
+for i in $users
+do
+   if [ -f "/home/$i/.bash_history" ]; then
+      box_out "Most used commands for /$i/.bash_history...."
+      cat /home/$i/.bash_history | awk '{print $2}' | awk 'BEGIN {FS="|"}{print $1}'| sort | uniq -c | sort -r
+   else
+      echo 'nothing in history for user $i'
+   fi
+done
+echo ""
+box_out "root .bash_history"
+cat -n /root/.bash_history
+echo ""
+
 box_out "Now searching for last updated files in known persistence locations..."
+echo ""
 #Scan for most recent changes
 for i in "${persistenceLocations[@]}"
 do
@@ -83,10 +137,11 @@ do
    fi
 done
 box_out "If you have not made any OS updates or if you have not installed any new software like plugins and themes, please check the files!!"
-
-
 echo ""
+
 #Scan for reverse shells
+box_out "Scanning for reverse shells using lsof"
+echo ""
 current_status=$(mktemp /tmp/temp-status.XXXXXX)
 lsof -Pnl +M -i4 > ${current_status}
 echo ""
@@ -109,6 +164,7 @@ echo ""
 #Top 20 IPs, and most recent IPs
 #Credit goes to "Spike" script was made by Bobby I. <bobby@bobbyiliev.com>
 #https://github.com/bobbyiliev/quick_access_logs_summary
+#further analysis can be done with https://github.com/nanopony/apache-scalp
 
 for log in "${accessLogsLocations[@]}"
 do
