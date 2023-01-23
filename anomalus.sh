@@ -1,8 +1,11 @@
 #!/bin/bash
 
-persistenceLocations=(/var/www/html/ /etc/nginx/ /etc/apache2/ /sbin /bin /usr/sbin /etc)
+persistenceLocations=(/var/www/html /etc/nginx /etc/apache2 /sbin /bin /usr/sbin /etc /var/spool)
 
 accessLogsLocations=(/var/log/nginix/access.log /var/log/apache/access.log)
+
+#Display users top commands in history file Default is 100:
+lookBackUsersLastCommands=100
 
 #Could have some false positives
 netFlags=(nc bash perl python php ruby java javaw)
@@ -34,29 +37,7 @@ echo ""
 box_out "Anomalus Response Toolkit"
 echo ""
 
-box_out "Analyzing users authorized_keys folder..."
-echo ""
-#List modified ~.ssh/authorized_keys dirs for all users
-usersDir=$(getent passwd | grep /home | cut -d: -f6)
-for i in $usersDir
-do
-   keys=$i/.ssh/authorized_keys
-   if [ -d $keys ]; then
-      current_status=$(mktemp /tmp/temp-status.XXXXXX)
-      if [[ -s ${current_status} ]]; then
-         find $keys -mtime -1 -type f -print > ${current_status}
-         box_out "Last 24-48 hours of activity in .ssh/authorized_keys for account: $i"
-         cat ${current_status}
-         echo ""
-      fi
-      rm -f ${current_status}
-   else
-      echo "No authorized_keys folder found for $i"
-   fi
-done
-echo ""
-
-box_out "Analyzing users groups, crontab, cron commands"
+box_out "Displaying users groups, hidden dirs, bash_history, crontab, cron commands"
 echo ""
 #List /etc/group for each user
 users=$(getent passwd | grep /home | cut -d: -f1)
@@ -66,6 +47,33 @@ do
    printf "%s\n" `getent group | grep $i | sort`
 done
 echo ""
+
+echo ""
+box_out "Searching for all hidden directories..."
+echo ""
+find / -type d -name "\.*"
+
+echo ""
+box_out "Searching for files+dirs with no user or group..."
+echo ""
+find / \( -nouser -o -nogroup \) 2>/dev/null
+
+echo ""
+box_out "Bash history *Most used commands* for all users..."
+echo ""
+users=$(getent passwd | cut -f1 -d: | grep -v root)
+for i in $users
+do
+   if [ -f "/home/$i/.bash_history" ]; then
+      box_out "Most used commands for /$i/.bash_history...."
+      cat -n /home/$i/.bash_history | awk '{a[$2]++} END {for (i in a) print a[i], i}' | sort -rn | head -n $lookBackUsersLastCommands
+   else
+      echo "nothing in history for user $i"
+   fi
+done
+echo ""
+box_out "root .bash_history *Most used commands*"
+cat -n /root/.bash_history | awk '{a[$2]++} END {for (i in a) print a[i], i}' | sort -rn | head -n $lookBackUsersLastCommands
 
 #List crontab for each user
 users=$(getent passwd | cut -f1 -d:) #getent passwd | grep /home | cut -d: -f1
@@ -77,12 +85,12 @@ do
 done
 
 echo ""
-box_out "system-wide crontab"
+box_out "Displaying System-wide crontab..."
 cat /etc/crontab
 echo ""
 
 box_out "Searching for excessive length cron commands in /var/spool/cron*"
-find /var/spool/cron* -type f -exec awk 'length($6) > 50 { print $6 }' {} \;
+find /var/spool/cron* -type f -print -exec awk 'length($6) > 50 { print $6 }' {} \;
 echo ""
 
 box_out "Searching for cron @reboot in /etc/cron.*"
@@ -91,7 +99,7 @@ grep -H '@reboot' /etc/crontab
 echo ""
 
 #List startup services / echo out rc.local
-box_out "List out startup services, timers, rc.local, and user history"
+box_out "Checking rc.local / systemctl timers..."
 echo ""
 systemctl list-unit-files | grep enabled
 echo ""
@@ -100,43 +108,36 @@ if [ -f /etc/rc.local ]; then
    cat /etc/rc.local
 fi
 echo ""
-systemctl list-timers --all
+systemctl list-timers --all | cat
 
 echo ""
-box_out "Bash history *Most used commands* for all users"
+box_out "Searching for process running from /tmp /dev /shm..."
 echo ""
-users=$(getent passwd | cut -f1 -d: | grep -v root)
-for i in $users
-do
-   if [ -f "/home/$i/.bash_history" ]; then
-      box_out "Most used commands for /$i/.bash_history...."
-      cat /home/$i/.bash_history | awk '{print $2}' | awk 'BEGIN {FS="|"}{print $1}'| sort | uniq -c | sort -r
-   else
-      echo 'nothing in history for user $i'
-   fi
-done
-echo ""
-box_out "root .bash_history"
-cat -n /root/.bash_history
-echo ""
+ls -alR /proc/*/cwd 2> /dev/null | grep -E "tmp|dev|shm"
 
-box_out "Now searching for last updated files in known persistence locations..."
 echo ""
-#Scan for most recent changes
-for i in "${persistenceLocations[@]}"
-do
-   if [ -d $i ]; then
-      current_status=$(mktemp /tmp/temp-status.XXXXXX)
-      find $i -mtime -1 -type f -print > ${current_status}
-      if [[ -s ${current_status} ]]; then
-         box_out "Last 24-48 hours modified files for $i:"
-         cat ${current_status}
-         echo ""
-      fi
-      rm -f ${current_status}
-   fi
-done
-box_out "If you have not made any OS updates or if you have not installed any new software like plugins and themes, please check the files!!"
+box_out "Searching for memfd_create() IOCs..."
+echo ""
+ls -alR /proc/*/exe 2> /dev/null | grep memfd:.*\(deleted\)
+
+echo ""
+box_out "Searching for generic binaries (deleted off disk) still running in memory..."
+echo ""
+ls -alR /proc/*/exe 2> /dev/null | grep deleted
+
+echo ""
+box_out "Searching for anti-forensic shell enviroments..."
+echo ""
+box_out "Investigate these environ(s) that contain (HISTFILE) and (MYSQL_HISTFILE)"
+find /proc/*/environ -type f -exec grep -E "HISTFILE|MYSQL_HISTFILE" {} \;
+echo ""
+box_out "Running strings on /proc/*/environ extracting HIST, SHELL, HOME..."
+find /proc/*/environ -type f -exec strings {} \; | grep -E "HISTFILE|MYSQL_HISTFILE|SHELL|HOME"
+
+echo ""
+box_out "Searching for history files linked to /dev/null"
+echo ""
+ls -alR / 2> /dev/null | grep .*history | grep null
 echo ""
 
 #Scan for reverse shells
@@ -153,7 +154,7 @@ do
       cat ${current_status} | grep $flag
       cat ${current_status} | grep $flag | awk '{print $4}'
       box_out "If you do not recognize these actives connections, investigate!!
-      (The file descriptors 0, 1 and 2 stand for STDIN, STDOUT and STDERR *could include 3u, 4u)"
+      (0, 1 and 2 stand for STDIN, STDOUT and STDERR *could include 3u, 4u)"
       echo ""
    fi
    rm -f ${current_status}
@@ -195,4 +196,46 @@ do
    fi
 done
 
+box_out "Now searching for last updated files in users authorized_keys folder..."
+echo ""
+#List modified ~.ssh/authorized_keys dirs for all users
+usersDir=$(getent passwd | grep /home | cut -d: -f6)
+for i in $usersDir
+do
+   keys=$i/.ssh/authorized_keys
+   if [ -d $keys ]; then
+      current_status=$(mktemp /tmp/temp-status.XXXXXX)
+      if [[ -s ${current_status} ]]; then
+         find $keys -mtime -1 -type f -print > ${current_status}
+         box_out "Last 24-48 hours of activity in .ssh/authorized_keys for account: $i"
+         cat ${current_status}
+         echo ""
+      fi
+      rm -f ${current_status}
+   else
+      echo "No authorized_keys folder found for $i"
+   fi
+done
+echo ""
+
+box_out "Now searching for last updated files in known persistence locations..."
+echo ""
+#Scan for most recent changes
+for i in "${persistenceLocations[@]}"
+do
+   if [ -d $i ]; then
+      current_status=$(mktemp /tmp/temp-status.XXXXXX)
+      find $i -mtime -1 -type f -print > ${current_status}
+      if [[ -s ${current_status} ]]; then
+         box_out "Last 24-48 hours modified files for $i:"
+         cat ${current_status}
+         echo ""
+      fi
+      rm -f ${current_status}
+   fi
+done
+box_out "If you have not made any OS updates or if you have not installed any new software like plugins and themes, please check the files!!"
+echo ""
+
+echo ""
 box_out 'Finished @', `date +"%m-%d-%Y %T"`

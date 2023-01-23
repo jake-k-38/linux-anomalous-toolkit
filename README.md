@@ -51,7 +51,7 @@ sudo ./anomalus.sh > example.txt
 Add HTML / CSV output <br />
 Add more persistence checks <br />
 Add file output options inside folder <br />
-Add process analysis checks like "Process running from /tmp, /dev" or "Deleted binaries still running"
+Add process analysis checks like "Process running from /tmp, /dev" or ""
 
 ## Notes
 
@@ -59,3 +59,4 @@ https://www.activecountermeasures.com/hunting-for-persistence-in-linux-part-1-au
 https://www.xplg.com/linux-security-investigate-suspected-break-in/ <br />
 https://linuxsecurity.expert/tools/ <br />
 https://medium.com/@p.matkovski/detection-of-php-web-shells-with-access-log-waf-and-audit-deamon-e798d4c95ec <br />
+https://sandflysecurity.com/linux-compromise-detection-command-cheatsheet.pdf <br />
