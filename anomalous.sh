@@ -34,7 +34,7 @@ function box_out()
 
 box_out "Started @ `date +"%m-%d-%Y %T"`"
 echo ""
-box_out "Anomalus Response Toolkit"
+box_out "Anomalous Response Toolkit"
 echo ""
 
 box_out "Displaying users groups, hidden dirs, bash_history, crontab, cron commands"
