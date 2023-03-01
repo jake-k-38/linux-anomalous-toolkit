@@ -1,5 +1,5 @@
-# linux-anomalus-toolkit
-Anomalus is a Bash-based Linux incident response toolkit.
+# linux-anomalous-toolkit
+Anomalous is a Bash-based Linux incident response toolkit.
 ## Table of contents
 * [General info](#general-info)
 * [Getting started](#getting-started)
@@ -44,7 +44,7 @@ sudo chmod 755 anomalus.sh
 Simply just run the script anomalus.sh and direct output to file
 
 ```
-sudo ./anomalus.sh > example.txt
+sudo ./anomalous.sh > example.txt
 ```
 
 ## To-Do
